@@ -18,14 +18,15 @@ The platform provides a centralized system for students and staff to report lost
 
 ## Tech Stack
 
-Frontend: React.js, Tailwind CSS
-Backend: Node.js, Express.js
-Database: MongoDB
-AI: Gemini 2.5 Flash, Embeddings, FAISS
-Services: Cloudinary, Nodemailer
+**Frontend:** React.js, Tailwind CSS
+**Backend:** Node.js, Express.js
+**Database:** MongoDB
+**AI:** Gemini 2.5 Flash, Embeddings, FAISS
+**Services:** Cloudinary, Nodemailer
 
 ## Architecture
 
+```text
 React + Tailwind CSS
         ↓
 Node.js + Express.js
@@ -39,14 +40,17 @@ Gemini → Embeddings → FAISS
 Potential Match
         ↓
 Notification & Verification
+```
 
 ## Project Structure
 
+```text
 FindIt/
 ├── frontend/
 ├── backend/
 ├── .gitignore
 └── README.md
+```
 
 ## Getting Started
 
