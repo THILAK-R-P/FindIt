@@ -1,0 +1,13 @@
+{
+  "name": "findit-campus-platform",
+  "version": "1.0.0",
+  "description": "FindIt – Campus Lost Item Reporting and Recovery Platform",
+  "author": "Sukesh R & Thilak R P",
+  "scripts": {
+    "backend": "npm --prefix backend start",
+    "backend:dev": "npm --prefix backend run dev",
+    "frontend": "npm --prefix frontend run dev",
+    "seed": "npm --prefix backend run seed",
+    "build": "npm --prefix frontend run build"
+  }
+}
