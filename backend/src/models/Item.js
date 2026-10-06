@@ -75,6 +75,18 @@ const itemSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    embedding: {
+      type: [Number],
+      default: undefined,
+    },
+    aiProcessed: {
+      type: Boolean,
+      default: false,
+    },
+    aiAttributes: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,
