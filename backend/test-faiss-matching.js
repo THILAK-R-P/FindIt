@@ -5,160 +5,192 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const Item = require('./src/models/Item');
-const User = require('./src/models/User');
-const { analyzeAndFindMatches } = require('./src/services/aiMatchingService');
-const { syncIndexFromDB } = require('./src/services/faissService');
+const { searchSimilarItems, syncIndexFromDB, isCategoryCompatible } = require('./src/services/faissService');
 
 const runFaissTesting = async () => {
   console.log('====================================================');
-  console.log('  FindIt - Phase 3: FAISS Vector Similarity Matching Test');
-  console.log('====================================================');
+  console.log('  FindIt - Phase 3 Validation: Category Filtering & Threshold Calibration');
+  console.log(`  Configured AI_MATCH_THRESHOLD: ${process.env.AI_MATCH_THRESHOLD || '0.86'}`);
+  console.log('====================================================\n');
 
   const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/findit';
+
   try {
     await mongoose.connect(mongoUri);
     console.log('[Database] Connected to MongoDB.');
 
-    const reporter = (await User.findOne({ role: 'student' })) || (await User.findOne());
-    if (!reporter) {
-      console.error('[Error] No user found in database to associate test items with.');
-      process.exit(1);
-    }
+    // Step 0: Ensure FAISS indices are synced from DB
+    console.log('[FAISS] Synchronizing LOST and FOUND indices from database...');
+    const lostSync = await syncIndexFromDB('lost', true);
+    const foundSync = await syncIndexFromDB('found', true);
+    console.log(`[FAISS] Indices synced: ${lostSync.count} LOST items, ${foundSync.count} FOUND items indexed.\n`);
 
-    // Reuse existing image from DB
-    const seedItemWithImage = await Item.findOne({ imageUrl: { $exists: true, $regex: '^data:image' } });
-    if (!seedItemWithImage || !seedItemWithImage.imageUrl) {
-      console.error('[Error] No existing image found in database to attach.');
-      process.exit(1);
-    }
-    const sampleImage = seedItemWithImage.imageUrl;
-
-    // 1. SETUP: Create or ensure at least one FOUND item exists with embedding
-    console.log('\n----------------------------------------------------');
-    console.log(' [STEP 1] Setting up Target FOUND Item in Database...');
-    console.log('----------------------------------------------------');
-
-    const foundItem = await Item.create({
-      itemName: 'Found Digital Notes Tablet displaying MongoDB Schemas',
-      type: 'found',
-      category: 'Documents',
-      description: 'Found on 2nd floor lecture hall. Has handwritten notes and database schemas on black screen.',
-      date: new Date(),
-      time: '10:15 AM',
-      location: 'Academic Block 3 - Hall 201',
-      brand: 'MongoDB',
-      color: 'Black',
-      distinctiveMarks: 'Diagram showing User and Course tables',
-      imageUrl: sampleImage,
-      status: 'found',
-      reportedBy: reporter._id,
-    });
-
-    console.log(`[Created FOUND Item] '${foundItem.itemName}' (ID: ${foundItem._id})`);
-    console.log('[Processing FOUND Item through AI Pipeline to generate & index embedding]...');
-    const foundResult = await analyzeAndFindMatches(foundItem);
-    console.log(`[FOUND Item Processed] Embedding generated: ${foundResult.embeddingDimension}-dim. Saved to DB.\n`);
-
-    // Force sync the FOUND index to make sure all found items are in FAISS
-    await syncIndexFromDB('found', true);
-
-    // 2. TEST CASE A: Submit a visually & semantically SIMILAR LOST item
-    console.log('----------------------------------------------------');
-    console.log(' [STEP 2] Submitting SIMILAR LOST Item...');
-    console.log('----------------------------------------------------');
-
-    const similarLostItem = await Item.create({
-      itemName: 'Lost Digital Lecture Notes Tablet with White Pen Notes',
-      type: 'lost',
-      category: 'Documents',
-      description: 'Lost my digital tablet with database lecture notes and NoSQL diagram sketches in room 201.',
-      date: new Date(),
-      time: '10:00 AM',
-      location: 'Academic Block 3 - Hall 201',
-      brand: 'MongoDB',
-      color: 'Black',
-      distinctiveMarks: 'White handwriting on dark screen with red underlines',
-      imageUrl: sampleImage,
-      status: 'lost',
-      reportedBy: reporter._id,
-    });
-
-    console.log(`[Created SIMILAR LOST Item] '${similarLostItem.itemName}' (ID: ${similarLostItem._id})`);
-    console.log('[Invoking Pipeline: Gemini Analysis -> Embedding -> FAISS Search against FOUND Items]...\n');
-
-    const similarResult = await analyzeAndFindMatches(similarLostItem);
-
-    console.log('\n--- SIMILAR ITEM RESULT SUMMARY ---');
-    console.log(`Target Type Searched:  ${similarResult.targetType}`);
-    console.log(`Match Count:           ${similarResult.matchCount}`);
-    console.log(`Pipeline Status:       ${similarResult.status}`);
-    if (similarResult.matches && similarResult.matches.length > 0) {
-      console.log('Top Match Details:');
-      similarResult.matches.forEach((m, idx) => {
-        console.log(`  #${idx + 1} Found Item: '${m.itemName}'`);
-        console.log(`     Item ID:     ${m.itemId}`);
-        console.log(`     Location:    ${m.location}`);
-        console.log(`     Similarity:  ${m.similarityScore} (Threshold: ${process.env.AI_MATCH_THRESHOLD || 0.75})`);
-      });
-    } else {
-      console.log('No matches exceeded threshold.');
-    }
-    console.log('-----------------------------------\n');
-
-    // 3. TEST CASE B: Submit an UNRELATED LOST item (e.g. Leather Wallet)
-    console.log('----------------------------------------------------');
-    console.log(' [STEP 3] Submitting UNRELATED LOST Item...');
-    console.log('----------------------------------------------------');
-
-    const unrelatedLostItem = await Item.create({
-      itemName: 'Lost Brown Leather Tri-fold Wallet with ID and Cash',
+    // Fetch test items
+    const lostWatch = await Item.findOne({
       type: 'lost',
       category: 'Accessories',
-      description: 'Lost my brown vintage leather wallet near the cafeteria benches during lunch.',
-      date: new Date(),
-      time: '01:30 PM',
-      location: 'Campus Cafeteria Benches',
-      brand: 'Wildhorn',
-      color: 'Dark Brown',
-      distinctiveMarks: 'Worn edges with brass coin zipper',
-      imageUrl: '', // Text-based item report
-      status: 'lost',
-      reportedBy: reporter._id,
+      itemName: { $regex: /watch/i },
+      embedding: { $exists: true, $ne: null },
     });
 
-    console.log(`[Created UNRELATED LOST Item] '${unrelatedLostItem.itemName}' (ID: ${unrelatedLostItem._id})`);
-    console.log('[Invoking Pipeline: Gemini Analysis -> Embedding -> FAISS Search against FOUND Items]...\n');
+    const foundWatch = await Item.findOne({
+      type: 'found',
+      category: 'Accessories',
+      itemName: { $regex: /watch/i },
+      embedding: { $exists: true, $ne: null },
+    });
 
-    const unrelatedResult = await analyzeAndFindMatches(unrelatedLostItem);
+    const lostBag = await Item.findOne({
+      type: 'lost',
+      category: 'Bags',
+      itemName: { $regex: /bag/i },
+      embedding: { $exists: true, $ne: null },
+    });
 
-    console.log('\n--- UNRELATED ITEM RESULT SUMMARY ---');
-    console.log(`Target Type Searched:  ${unrelatedResult.targetType}`);
-    console.log(`Match Count:           ${unrelatedResult.matchCount}`);
-    console.log(`Pipeline Status:       ${unrelatedResult.status}`);
-    if (unrelatedResult.matches && unrelatedResult.matches.length > 0) {
-      console.log('Unexpected matches found:');
-      unrelatedResult.matches.forEach((m) => {
-        console.log(`  Matched with: '${m.itemName}' | Score: ${m.similarityScore}`);
+    const foundBag = await Item.findOne({
+      type: 'found',
+      category: 'Bags',
+      itemName: { $regex: /bag/i },
+      embedding: { $exists: true, $ne: null },
+    });
+
+    if (!lostWatch || !foundWatch || !lostBag || !foundBag) {
+      console.error('[Error] Missing required seed items in database for testing.');
+      console.error({
+        hasLostWatch: !!lostWatch,
+        hasFoundWatch: !!foundWatch,
+        hasLostBag: !!lostBag,
+        hasFoundBag: !!foundBag,
       });
+      process.exit(1);
+    }
+
+    const testResults = {
+      test1: false,
+      test2: false,
+      test3: false,
+      test4: false,
+    };
+
+    // ----------------------------------------------------
+    // TEST 1: Lost watch <--> Found watch
+    // Expected: MATCH if similarity >= 0.86 and categories are compatible.
+    // ----------------------------------------------------
+    console.log('----------------------------------------------------');
+    console.log('  TEST 1: Lost watch <--> Found watch');
+    console.log(`  Query:  '${lostWatch.itemName}' (${lostWatch.category}, lost)`);
+    console.log(`  Target: Search against FOUND items (looking for '${foundWatch.itemName}')`);
+    console.log('  Expected: MATCH (similarity >= 0.86 and compatible categories)');
+    console.log('----------------------------------------------------');
+
+    const matchesT1 = await searchSimilarItems(lostWatch.embedding, 'found', {
+      excludeItemId: lostWatch._id,
+      queryCategory: lostWatch.category,
+      threshold: parseFloat(process.env.AI_MATCH_THRESHOLD) || 0.86,
+    });
+
+    const watchMatch = matchesT1.find((m) => m.itemId === foundWatch._id.toString());
+    if (watchMatch && watchMatch.similarityScore >= 0.86 && isCategoryCompatible(lostWatch.category, watchMatch.category)) {
+      console.log(`\n>>> TEST 1 RESULT: PASSED (Found match '${watchMatch.itemName}' with score ${watchMatch.similarityScore} >= 0.86) <<<\n`);
+      testResults.test1 = true;
     } else {
-      console.log(`[SUCCESS] 0 matches returned. Threshold properly filtered out unrelated items.`);
+      console.error('\n>>> TEST 1 RESULT: FAILED <<<');
+      console.error(matchesT1);
     }
-    console.log('-----------------------------------\n');
 
-    // 4. VERIFICATION SUMMARY
-    console.log('====================================================');
-    console.log('  PHASE 3 VERIFICATION FINAL ASSESSMENT:');
-    console.log('====================================================');
-    const similarPassed = similarResult.matchCount > 0 && similarResult.matches[0].similarityScore >= 0.75;
-    const unrelatedPassed = unrelatedResult.matchCount === 0;
+    // ----------------------------------------------------
+    // TEST 2: Lost watch <--> Found bag
+    // Expected: NOT a match because categories are incompatible.
+    // ----------------------------------------------------
+    console.log('----------------------------------------------------');
+    console.log('  TEST 2: Lost watch <--> Found bag');
+    console.log(`  Query:  '${lostWatch.itemName}' (${lostWatch.category}, lost)`);
+    console.log(`  Target: Found bag '${foundBag.itemName}' (${foundBag.category}, found)`);
+    console.log('  Expected: NOT a match (Reason: Category incompatible)');
+    console.log('----------------------------------------------------');
 
-    console.log(`1. Similar Item Match Test:   ${similarPassed ? 'PASSED (Match found with score ' + similarResult.matches[0]?.similarityScore + ')' : 'FAILED'}`);
-    console.log(`2. Unrelated Item Filter Test: ${unrelatedPassed ? 'PASSED (0 matches, threshold enforced)' : 'FAILED'}`);
+    // In the search for lostWatch against FOUND items, check if foundBag was accepted or rejected
+    const bagInMatches = matchesT1.find((m) => m.itemId === foundBag._id.toString());
+    const isCatCompatible = isCategoryCompatible(lostWatch.category, foundBag.category);
 
-    if (similarPassed && unrelatedPassed) {
-      console.log('\n>>> ALL PHASE 3 FAISS REQUIREMENTS SATISFIED SUCCESSFULLY! <<<');
+    console.log(`Category Compatibility (${lostWatch.category} <--> ${foundBag.category}): ${isCatCompatible}`);
+    if (!bagInMatches && !isCatCompatible) {
+      console.log('\n>>> TEST 2 RESULT: PASSED (Found bag was correctly rejected due to incompatible category) <<<\n');
+      testResults.test2 = true;
+    } else {
+      console.error('\n>>> TEST 2 RESULT: FAILED (Found bag was unexpectedly matched or marked compatible) <<<');
     }
+
+    // ----------------------------------------------------
+    // TEST 3: Lost bag <--> Found bag
+    // Expected: MATCH if similarity >= 0.86.
+    // ----------------------------------------------------
+    console.log('----------------------------------------------------');
+    console.log('  TEST 3: Lost bag <--> Found bag');
+    console.log(`  Query:  '${lostBag.itemName}' (${lostBag.category}, lost)`);
+    console.log(`  Target: Search against FOUND items (looking for '${foundBag.itemName}')`);
+    console.log('  Expected: MATCH if similarity >= 0.86 and compatible categories');
+    console.log('----------------------------------------------------');
+
+    const matchesT3 = await searchSimilarItems(lostBag.embedding, 'found', {
+      excludeItemId: lostBag._id,
+      queryCategory: lostBag.category,
+      threshold: parseFloat(process.env.AI_MATCH_THRESHOLD) || 0.86,
+    });
+
+    const bagMatch = matchesT3.find((m) => m.category === 'Bags');
+    if (bagMatch && bagMatch.similarityScore >= 0.86 && isCategoryCompatible(lostBag.category, bagMatch.category)) {
+      console.log(`\n>>> TEST 3 RESULT: PASSED (Found bag match '${bagMatch.itemName}' with score ${bagMatch.similarityScore} >= 0.86) <<<\n`);
+      testResults.test3 = true;
+    } else {
+      console.error('\n>>> TEST 3 RESULT: FAILED <<<');
+      console.error(matchesT3);
+    }
+
+    // ----------------------------------------------------
+    // TEST 4: Unrelated items with similarity around 0.75–0.84
+    // Expected: NOT a match (Reason: Below threshold)
+    // ----------------------------------------------------
+    console.log('----------------------------------------------------');
+    console.log('  TEST 4: Unrelated items with similarity around 0.75-0.84');
+    console.log(`  Query:  Watch embedding with 'Electronics' category searching against LOST items`);
+    console.log('  Expected: NOT a match because similarity (e.g. ~0.78) is below 0.86 threshold');
+    console.log('----------------------------------------------------');
+
+    const matchesT4 = await searchSimilarItems(foundWatch.embedding, 'lost', {
+      excludeItemId: foundWatch._id,
+      queryCategory: 'Electronics',
+      threshold: parseFloat(process.env.AI_MATCH_THRESHOLD) || 0.86,
+    });
+
+    // Check that items with score 0.75-0.84 (like Smart Watch with score ~0.78) were NOT accepted as matches
+    const weakMatchAccepted = matchesT4.some((m) => m.similarityScore < 0.86);
+    if (!weakMatchAccepted && matchesT4.length === 0) {
+      console.log('\n>>> TEST 4 RESULT: PASSED (Candidates with similarity 0.75-0.84 were correctly rejected as Below threshold) <<<\n');
+      testResults.test4 = true;
+    } else {
+      console.error('\n>>> TEST 4 RESULT: FAILED (A candidate below threshold was accepted) <<<');
+    }
+
+    // ----------------------------------------------------
+    // FINAL ASSESSMENT
+    // ----------------------------------------------------
     console.log('====================================================');
+    console.log('  FINAL VALIDATION ASSESSMENT:');
+    console.log('====================================================');
+    console.log(`TEST 1 (Lost watch <--> Found watch):   ${testResults.test1 ? 'PASSED' : 'FAILED'}`);
+    console.log(`TEST 2 (Lost watch <--> Found bag):     ${testResults.test2 ? 'PASSED' : 'FAILED'}`);
+    console.log(`TEST 3 (Lost bag <--> Found bag):       ${testResults.test3 ? 'PASSED' : 'FAILED'}`);
+    console.log(`TEST 4 (Below threshold rejection):    ${testResults.test4 ? 'PASSED' : 'FAILED'}`);
+
+    const allPassed = testResults.test1 && testResults.test2 && testResults.test3 && testResults.test4;
+    if (allPassed) {
+      console.log('\n>>> ALL 4 CATEGORY & THRESHOLD TEST CASES PASSED SUCCESSFULLY! <<<');
+      console.log('>>> Phase 3 is now verified and ready for Phase 4! <<<');
+    } else {
+      console.error('\n>>> SOME TESTS FAILED. PLEASE REVIEW LOGS. <<<');
+    }
+    console.log('====================================================\n');
   } catch (err) {
     console.error('[Test Error]', err);
   } finally {

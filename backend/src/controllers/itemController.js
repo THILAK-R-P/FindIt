@@ -52,8 +52,12 @@ const createLostItem = async (req, res, next) => {
       link: `/items/${item._id}`,
     });
 
-    // Call future AI pipeline hook
-    await analyzeAndFindMatches(item);
+    // Call AI pipeline hook (Gemini Analysis -> Embedding -> FAISS Search)
+    try {
+      await analyzeAndFindMatches(item);
+    } catch (aiErr) {
+      console.error('[AI Hook Warning] Error in AI pipeline during lost item report:', aiErr.message);
+    }
 
     const populatedItem = await Item.findById(item._id).populate(
       'reportedBy',
@@ -120,8 +124,12 @@ const createFoundItem = async (req, res, next) => {
       link: `/items/${item._id}`,
     });
 
-    // Call future AI pipeline hook
-    await analyzeAndFindMatches(item);
+    // Call AI pipeline hook (Gemini Analysis -> Embedding -> FAISS Search)
+    try {
+      await analyzeAndFindMatches(item);
+    } catch (aiErr) {
+      console.error('[AI Hook Warning] Error in AI pipeline during found item report:', aiErr.message);
+    }
 
     const populatedItem = await Item.findById(item._id).populate(
       'reportedBy',

@@ -4,8 +4,45 @@ const path = require('path');
 const Item = require('../models/Item');
 
 const EMBEDDING_DIM = 3072;
-const DEFAULT_THRESHOLD = parseFloat(process.env.AI_MATCH_THRESHOLD) || 0.75;
+const DEFAULT_THRESHOLD = parseFloat(process.env.AI_MATCH_THRESHOLD) || 0.86;
 const INDEX_DIR = path.resolve(__dirname, '../../', process.env.FAISS_INDEX_DIR || './data/faiss');
+
+/**
+ * Category compatibility mapping for campus lost and found items.
+ * Prevents obviously incompatible categories (e.g. Bags vs Accessories) from matching.
+ */
+const CATEGORY_COMPATIBILITY_MAP = {
+  bags: ['bags', 'other'],
+  accessories: ['accessories', 'other'],
+  electronics: ['electronics', 'other'],
+  clothing: ['clothing', 'other'],
+  keys: ['keys', 'other'],
+  documents: ['documents', 'books', 'id cards', 'other'],
+  books: ['books', 'documents', 'other'],
+  'id cards': ['id cards', 'documents', 'other'],
+  other: ['bags', 'accessories', 'electronics', 'clothing', 'keys', 'documents', 'books', 'id cards', 'other'],
+};
+
+/**
+ * Checks whether two item categories are compatible for matching.
+ *
+ * @param {string|null} catA - Query item category
+ * @param {string|null} catB - Candidate item category
+ * @returns {boolean}
+ */
+const isCategoryCompatible = (catA, catB) => {
+  if (!catA || !catB) return true;
+  const normA = catA.trim().toLowerCase();
+  const normB = catB.trim().toLowerCase();
+  if (normA === normB) return true;
+  if (normA === 'other' || normB === 'other') return true;
+
+  const compatibleList = CATEGORY_COMPATIBILITY_MAP[normA];
+  if (compatibleList && compatibleList.includes(normB)) {
+    return true;
+  }
+  return false;
+};
 
 /**
  * In-memory index cache for 'lost' and 'found' collections
@@ -263,6 +300,7 @@ const searchSimilarItems = async (queryEmbedding, targetType, options = {}) => {
       options.threshold !== undefined ? Number(options.threshold) : DEFAULT_THRESHOLD;
     const topK = options.topK || 5;
     const excludeItemId = options.excludeItemId ? options.excludeItemId.toString() : null;
+    const queryCategory = options.queryCategory || options.category || null;
 
     // 2. Ensure target index is loaded/synced
     const cache = indexCache[targetType];
@@ -308,21 +346,37 @@ const searchSimilarItems = async (queryEmbedding, targetType, options = {}) => {
       // Exclude self if same item
       if (excludeItemId && candidate.itemId === excludeItemId) continue;
 
-      // Filter by similarity threshold
-      if (similarity >= threshold) {
-        matches.push({
-          itemId: candidate.itemId,
-          itemName: candidate.itemName,
-          type: candidate.type,
-          category: candidate.category,
-          location: candidate.location,
-          date: candidate.date,
-          imageUrl: candidate.imageUrl,
-          description: candidate.description,
-          similarityScore: Number(similarity.toFixed(4)),
-          reportedBy: candidate.reportedBy,
-        });
+      const score = Number(similarity.toFixed(4));
+
+      // Category compatibility filter
+      const isCompatible = isCategoryCompatible(queryCategory, candidate.category);
+      if (!isCompatible) {
+        console.log(`[FAISS] Candidate rejected:`);
+        console.log(`Score: ${score}`);
+        console.log(`Reason: Category incompatible`);
+        continue;
       }
+
+      // Similarity threshold filter
+      if (score < threshold) {
+        console.log(`[FAISS] Candidate rejected:`);
+        console.log(`Score: ${score}`);
+        console.log(`Reason: Below threshold`);
+        continue;
+      }
+
+      matches.push({
+        itemId: candidate.itemId,
+        itemName: candidate.itemName,
+        type: candidate.type,
+        category: candidate.category,
+        location: candidate.location,
+        date: candidate.date,
+        imageUrl: candidate.imageUrl,
+        description: candidate.description,
+        similarityScore: score,
+        reportedBy: candidate.reportedBy,
+      });
 
       if (matches.length >= topK) break;
     }
@@ -359,6 +413,8 @@ module.exports = {
   syncIndexFromDB,
   addItemToIndex,
   l2Normalize,
+  isCategoryCompatible,
+  CATEGORY_COMPATIBILITY_MAP,
   EMBEDDING_DIM,
   DEFAULT_THRESHOLD,
   INDEX_DIR,

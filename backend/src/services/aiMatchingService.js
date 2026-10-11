@@ -82,6 +82,7 @@ const analyzeAndFindMatches = async (item) => {
     console.log(`[AI Pipeline] Running FAISS similarity search for ${item.type.toUpperCase()} item against ${targetType.toUpperCase()} items...`);
     matches = await searchSimilarItems(embedding, targetType, {
       excludeItemId: item._id,
+      queryCategory: item.category,
     });
 
     // Add newly processed item into its own FAISS index for future searches

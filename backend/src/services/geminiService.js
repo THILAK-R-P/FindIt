@@ -104,11 +104,13 @@ const parseImageData = async (imageData) => {
   if (!trimmed) return null;
 
   // 3. Data URL (e.g., data:image/png;base64,....)
-  const dataUrlMatch = trimmed.match(/^data:([a-zA-Z0-9/+-.]+);base64,(.+)$/s);
+  const dataUrlMatch = trimmed.match(/^data:([a-zA-Z0-9/+-.]+)(?:;[a-zA-Z0-9=+._-]+)*;base64,(.+)$/s);
   if (dataUrlMatch) {
+    let mime = dataUrlMatch[1].split(';')[0].trim().toLowerCase();
+    if (mime === 'image/jpg') mime = 'image/jpeg';
     return {
-      mimeType: dataUrlMatch[1],
-      data: dataUrlMatch[2].replace(/\s/g, ''),
+      mimeType: mime || 'image/jpeg',
+      data: dataUrlMatch[2].replace(/[\r\n\s]/g, ''),
     };
   }
 

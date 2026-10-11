@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { itemService } from '../../services/itemService';
+import { compressImage } from '../../utils/imageCompressor';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -64,23 +65,29 @@ const ReportLostPage = () => {
   const [successData, setSuccessData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Handle client-side file upload and base64 preview
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({
-          ...prev,
-          image: 'Image size should be less than 5MB',
-        }));
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData((prev) => ({ ...prev, imageUrl: reader.result }));
-      };
-      reader.readAsDataURL(file);
+  // Handle client-side file upload and auto-compress to optimized JPEG
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        image: 'Image size should be less than 25MB',
+      }));
+      return;
+    }
+
+    try {
+      setErrors((prev) => ({ ...prev, image: '' }));
+      const compressedDataUrl = await compressImage(file, 1200, 1200, 0.85);
+      setImagePreview(compressedDataUrl);
+      setFormData((prev) => ({ ...prev, imageUrl: compressedDataUrl }));
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        image: err.message || 'Failed to process image. Please try another image.',
+      }));
     }
   };
 
@@ -380,7 +387,7 @@ const ReportLostPage = () => {
                   Click to select item photo
                 </span>
                 <span className="text-[11px] text-slate-400 mt-0.5">
-                  Supports PNG, JPG, JPEG up to 5MB (Stored in base64 preview for Review 1)
+                  Supports PNG, JPG, JPEG up to 25MB (Auto-optimized for AI analysis)
                 </span>
                 <input
                   id="image-upload"
