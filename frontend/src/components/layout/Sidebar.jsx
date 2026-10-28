@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   AlertCircle,
@@ -12,12 +12,18 @@ import {
   PackageSearch,
   Users,
   ArrowLeft,
-  Sparkles,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isAdminMode = false }) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const userNavItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -83,17 +89,17 @@ const Sidebar = ({ isAdminMode = false }) => {
             </NavLink>
           );
         })}
-      </div>
 
-      {/* Future AI status mini pill */}
-      <div className="mt-8 p-3 rounded-2xl bg-gradient-to-br from-indigo-950 to-slate-900 border border-indigo-800/40 text-white space-y-1.5 shadow-sm">
-        <div className="flex items-center gap-1.5 text-indigo-400 text-xs font-bold">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AI Engine Prep</span>
+        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all text-left"
+          >
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span>Sign Out</span>
+          </button>
         </div>
-        <p className="text-[11px] text-slate-300 leading-tight">
-          Phase 2 will activate Gemini 2.5 Flash & FAISS index.
-        </p>
       </div>
     </aside>
   );

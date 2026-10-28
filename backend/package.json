@@ -9,7 +9,10 @@
     "seed": "node src/utils/seed.js",
     "test:gemini": "node test-gemini.js",
     "test:submit": "node test-submit-lost-item.js",
-    "test:faiss": "node test-faiss-matching.js"
+    "test:faiss": "node test-faiss-matching.js",
+    "test:notifications": "node test-phase4-notifications.js",
+    "test:upload": "node test-image-upload-verification.js",
+    "test:privacy-email": "node test-privacy-and-email.js"
   },
   "keywords": [
     "findit",
@@ -29,6 +32,7 @@
     "faiss-node": "^0.5.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "nodemailer": "^10.2.1"
   }
 }

@@ -1,12 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const path = require('path');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables (resolves backend/.env reliably regardless of launch directory)
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Connect to MongoDB database
 connectDB();
@@ -40,7 +41,6 @@ app.get('/', (req, res) => {
     project: 'FindIt – Campus Lost Item Reporting and Recovery Platform',
     team: ['Sukesh R', 'Thilak R P'],
     status: 'online',
-    phase: 'First Review Prototype',
     timestamp: new Date().toISOString(),
   });
 });

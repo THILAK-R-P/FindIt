@@ -1,6 +1,7 @@
 const Item = require('../models/Item');
 const Notification = require('../models/Notification');
 const { analyzeAndFindMatches } = require('../services/aiMatchingService');
+const { createMatchNotifications } = require('../services/notificationService');
 
 // @desc    Report a lost item
 // @route   POST /api/items/lost
@@ -54,7 +55,10 @@ const createLostItem = async (req, res, next) => {
 
     // Call AI pipeline hook (Gemini Analysis -> Embedding -> FAISS Search)
     try {
-      await analyzeAndFindMatches(item);
+      const matchResult = await analyzeAndFindMatches(item);
+      if (matchResult && Array.isArray(matchResult.matches) && matchResult.matches.length > 0) {
+        await createMatchNotifications(item, matchResult.matches);
+      }
     } catch (aiErr) {
       console.error('[AI Hook Warning] Error in AI pipeline during lost item report:', aiErr.message);
     }
@@ -126,7 +130,10 @@ const createFoundItem = async (req, res, next) => {
 
     // Call AI pipeline hook (Gemini Analysis -> Embedding -> FAISS Search)
     try {
-      await analyzeAndFindMatches(item);
+      const matchResult = await analyzeAndFindMatches(item);
+      if (matchResult && Array.isArray(matchResult.matches) && matchResult.matches.length > 0) {
+        await createMatchNotifications(item, matchResult.matches);
+      }
     } catch (aiErr) {
       console.error('[AI Hook Warning] Error in AI pipeline during found item report:', aiErr.message);
     }
@@ -377,14 +384,17 @@ const deleteItem = async (req, res, next) => {
 const getMyReports = async (req, res, next) => {
   try {
     const { status, type } = req.query;
+
+    // Strict privacy enforcement: ALWAYS filter by authenticated user ID (req.user._id)
+    // Completely ignore any client-supplied userId, user, or reportedBy parameters
     const filter = { reportedBy: req.user._id };
 
-    if (status && status !== 'all') {
-      filter.status = status;
+    if (typeof status === 'string' && status !== 'all' && status.trim() !== '') {
+      filter.status = status.trim();
     }
 
-    if (type && type !== 'all') {
-      filter.type = type;
+    if (typeof type === 'string' && type !== 'all' && type.trim() !== '') {
+      filter.type = type.trim();
     }
 
     const items = await Item.find(filter).sort({ createdAt: -1 });

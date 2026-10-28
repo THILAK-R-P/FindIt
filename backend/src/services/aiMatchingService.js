@@ -1,23 +1,7 @@
 /**
- * AI Matching Service (Architecture Placeholder for Phase 2)
- *
- * NOTE FOR FIRST REVIEW:
- * Gemini API and FAISS vector index are intentionally NOT connected in Phase 1.
- * This service establishes the architectural contract and future integration hooks.
- *
- * =========================================================================
- * FUTURE PHASE 2 IMPLEMENTATION PIPELINE:
- * =========================================================================
- * 1. Receive item image / metadata payload upon report submission (lost/found).
- * 2. Send item image + prompt to Gemini 2.5 Flash multimodal endpoint to extract:
- *    - Standardized category, color palette, brand recognition, text/OCR features.
- * 3. Generate high-dimensional vector embeddings using Google text-embedding / multimodal embeddings.
- * 4. Index and query vectors in FAISS (Facebook AI Similarity Search) index.
- * 5. Compute cosine similarity between lost and found item feature vectors.
- * 6. Filter by threshold (e.g. cosine score > 0.82) and cross-reference campus location/time.
- * 7. Return verified potential match candidates.
- * 8. Automatically trigger in-app notifications and email alerts via Nodemailer.
- * =========================================================================
+ * AI Matching Service
+ * Multimodal Gemini image analysis, high-dimensional vector embeddings,
+ * and FAISS vector similarity search.
  */
 
 const Item = require('../models/Item');
@@ -34,7 +18,7 @@ const { searchSimilarItems, addItemToIndex } = require('./faissService');
  * @returns {Promise<Object>} - Resolves with extracted AI attributes, embedding status, and verified FAISS matches
  */
 const analyzeAndFindMatches = async (item) => {
-  console.log(`[AI Architecture Hook] Item '${item.itemName}' (${item._id}) entered Phase 3 AI pipeline.`);
+  console.log(`[AI Matching] Processing item '${item.itemName}' (${item._id}) through matching pipeline.`);
 
   let aiAttributes = null;
 

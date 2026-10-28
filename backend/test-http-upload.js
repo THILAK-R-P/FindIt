@@ -6,10 +6,12 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const Item = require('./src/models/Item');
 
+const API_URL = process.env.API_URL || 'http://127.0.0.1:5000';
+
 const testHttpUpload = async () => {
   try {
     console.log('--- 1. Testing Auth Login ---');
-    const loginRes = await fetch('http://localhost:5000/api/auth/login', {
+    const loginRes = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -44,7 +46,7 @@ const testHttpUpload = async () => {
 
     console.log('\n--- 3. Sending POST /api/items/lost with Image (Measuring Request Time) ---');
     console.time('Total HTTP Request Time');
-    const reportRes = await fetch('http://localhost:5000/api/items/lost', {
+    const reportRes = await fetch(`${API_URL}/api/items/lost`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

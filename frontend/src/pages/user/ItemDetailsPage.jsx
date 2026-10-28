@@ -25,7 +25,6 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Loader from '../../components/common/Loader';
-import AIPlaceholderBanner from '../../components/items/AIPlaceholderBanner';
 
 const ItemDetailsPage = () => {
   const { id } = useParams();
@@ -342,9 +341,6 @@ const ItemDetailsPage = () => {
               )}
             </div>
           </div>
-
-          {/* AI Matching Architecture Banner */}
-          <AIPlaceholderBanner />
         </div>
       </div>
 

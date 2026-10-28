@@ -11,6 +11,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/common/Button';
 import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
@@ -38,6 +39,7 @@ const typeColors = {
 };
 
 const NotificationsPage = () => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ const NotificationsPage = () => {
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [user?._id]);
 
   const handleMarkAsRead = async (id) => {
     try {
@@ -93,7 +95,7 @@ const NotificationsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2.5">
-            <span>Notifications</span>
+            <span>My Notifications</span>
             {unreadCount > 0 && (
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-500 text-white">
                 {unreadCount} new
@@ -101,7 +103,7 @@ const NotificationsPage = () => {
             )}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Stay updated with your campus report activity, matching events, and administrative notes
+            Personal updates and match alerts for your account {user?.email ? `(${user.email})` : ''}
           </p>
         </div>
 

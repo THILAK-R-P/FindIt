@@ -34,8 +34,8 @@ const FAQS = [
     a: 'When you spot your lost item in "Browse Items", open the item details and submit a Claim request with proof of ownership (such as distinguishing marks, stickers, or serial details). Campus administrators review and approve claims before handover.',
   },
   {
-    q: 'What is the upcoming AI Smart Matching feature?',
-    a: 'In Phase 2, FindIt will incorporate Google Gemini 2.5 Flash and FAISS vector similarity search to automatically compare images and descriptions of newly reported lost items with found items across campus in real time.',
+    q: 'How does the AI Smart Matching feature work?',
+    a: 'FindIt uses Google Gemini multimodal image analysis and FAISS vector similarity search to automatically compare images and descriptions of newly reported lost items with found items across campus in real time.',
   },
 ];
 
@@ -78,10 +78,10 @@ const LandingPage = () => {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-indigo-500/20 to-blue-500/20 blur-3xl -z-10 rounded-full pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          {/* Milestone Badge */}
+          {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold mb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-            <span>Campus Lost & Found Platform • First Review Prototype</span>
+            <span>Campus Lost & Found Platform • AI-Powered Matching</span>
           </div>
 
           {/* Main Hero Headline */}
@@ -216,7 +216,7 @@ const LandingPage = () => {
                 Match
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Cross-reference items with reporter notes and prepare for automated multimodal AI matching in Phase 2.
+                Cross-reference items with reporter notes and automated multimodal AI vector similarity matching.
               </p>
             </div>
 

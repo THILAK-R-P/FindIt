@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -63,6 +63,7 @@ const ReportFoundPage = () => {
   const [errors, setErrors] = useState({});
   const [successData, setSuccessData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const fileInputRef = useRef(null);
 
   // Handle client-side file upload and auto-compress to optimized JPEG
   const handleImageChange = async (e) => {
@@ -74,6 +75,7 @@ const ReportFoundPage = () => {
         ...prev,
         image: 'Image size should be less than 25MB',
       }));
+      e.target.value = '';
       return;
     }
 
@@ -87,12 +89,19 @@ const ReportFoundPage = () => {
         ...prev,
         image: err.message || 'Failed to process image. Please try another image.',
       }));
+    } finally {
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
   const removeImage = () => {
     setImagePreview(null);
     setFormData((prev) => ({ ...prev, imageUrl: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const validate = () => {
@@ -375,27 +384,30 @@ const ReportFoundPage = () => {
                 </button>
               </div>
             ) : (
-              <label
-                htmlFor="image-upload-found"
-                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="p-3 bg-emerald-50 dark:bg-slate-800 rounded-2xl text-emerald-600 dark:text-emerald-400 mb-2">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Click to select item photo
-                </span>
-                <span className="text-[11px] text-slate-400 mt-0.5">
-                  Supports PNG, JPG, JPEG up to 25MB (Auto-optimized for AI analysis)
-                </span>
+              <div>
+                <label
+                  htmlFor="image-upload-found"
+                  className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                >
+                  <div className="p-3 bg-emerald-50 dark:bg-slate-800 rounded-2xl text-emerald-600 dark:text-emerald-400 mb-2">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Click to select item photo
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-0.5">
+                    Supports PNG, JPG, JPEG up to 25MB (Auto-optimized for AI analysis)
+                  </span>
+                </label>
                 <input
                   id="image-upload-found"
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
                   onChange={handleImageChange}
                 />
-              </label>
+              </div>
             )}
           </div>
 

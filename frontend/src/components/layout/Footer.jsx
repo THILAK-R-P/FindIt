@@ -87,7 +87,7 @@ const Footer = () => {
                 Thilak R P
               </p>
               <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
-                First Review Milestone Prototype
+                Campus Lost & Found Platform
               </p>
             </div>
           </div>
@@ -96,7 +96,7 @@ const Footer = () => {
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
           <p>© {new Date().getFullYear()} FindIt Campus Platform. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <span>Clean Architecture for Gemini 2.5 Flash & FAISS</span>
+            <span>AI-Powered Campus Match Engine</span>
           </div>
         </div>
       </div>

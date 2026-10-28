@@ -4,7 +4,6 @@ import { PackageSearch, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react
 import { itemService } from '../../services/itemService';
 import ItemCard from '../../components/items/ItemCard';
 import ItemFilter from '../../components/items/ItemFilter';
-import AIPlaceholderBanner from '../../components/items/AIPlaceholderBanner';
 import { CardSkeleton } from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
 import Button from '../../components/common/Button';
@@ -104,9 +103,6 @@ const BrowseItemsPage = () => {
         onChange={handleFilterChange}
         onReset={handleResetFilters}
       />
-
-      {/* Mini AI Banner */}
-      <AIPlaceholderBanner compact />
 
       {/* Items Grid / Empty State / Loader */}
       {loading ? (

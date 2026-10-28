@@ -229,12 +229,12 @@ const analyzeItemImage = async (imageData) => {
       'brand or manufacturer, primary color, secondary colors, distinctive features (e.g. logos, keychains, scratches, stickers, patterns), ' +
       'and any visible text or model numbers. Return the response strictly as JSON matching the schema.';
 
-    // 4. Request analysis from Gemini 3.8 Flash (with retry for transient demand spikes)
+    // 4. Request analysis from Gemini 3.8 Flash (with retry for transient demand spikes and timeout safeguard)
     let response = null;
-    const maxRetries = 3;
+    const maxRetries = 1;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        response = await ai.models.generateContent({
+        const analysisPromise = ai.models.generateContent({
           model: 'gemini-3.8-flash',
           contents: [
             {
@@ -258,11 +258,18 @@ const analyzeItemImage = async (imageData) => {
             temperature: 0.1,
           },
         });
+
+        // 12-second timeout safeguard to ensure report submission never blocks indefinitely
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Gemini image analysis timed out after 12s')), 12000)
+        );
+
+        response = await Promise.race([analysisPromise, timeoutPromise]);
         break; // Success
       } catch (callErr) {
         const isTransient = callErr.status === 503 || callErr.status === 429 || (callErr.message && callErr.message.includes('high demand'));
         if (isTransient && attempt < maxRetries) {
-          const delay = (attempt + 1) * 2000;
+          const delay = 1500;
           console.warn(`[Gemini Service] Transient API load (attempt ${attempt + 1}/${maxRetries + 1}). Retrying in ${delay / 1000}s...`);
           await new Promise((r) => setTimeout(r, delay));
         } else {

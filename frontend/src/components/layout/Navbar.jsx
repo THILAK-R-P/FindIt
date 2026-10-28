@@ -50,8 +50,10 @@ const Navbar = () => {
       fetchUnread();
       const interval = setInterval(fetchUnread, 30000);
       return () => clearInterval(interval);
+    } else {
+      setUnreadCount(0);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?._id]);
 
   const handleLogout = () => {
     logout();

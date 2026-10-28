@@ -21,7 +21,6 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
-import AIPlaceholderBanner from '../../components/items/AIPlaceholderBanner';
 
 const UserDashboard = () => {
   const { user } = useAuth();
@@ -70,7 +69,7 @@ const UserDashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [user?._id]);
 
   if (loading) {
     return <Loader message="Loading your dashboard metrics..." fullPage />;
@@ -141,7 +140,7 @@ const UserDashboard = () => {
         <StatCard
           title="Potential Matches"
           value={stats.matchedCount}
-          subtitle="AI pipeline queue (Phase 2)"
+          subtitle="AI identified candidate matches"
           icon={Sparkles}
           color="indigo"
         />
@@ -154,9 +153,6 @@ const UserDashboard = () => {
           color="blue"
         />
       </div>
-
-      {/* AI Smart Matching Placeholder Banner */}
-      <AIPlaceholderBanner />
 
       {/* Split Section: Recent Reports & Notifications */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

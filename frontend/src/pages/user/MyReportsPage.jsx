@@ -13,6 +13,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { itemService } from '../../services/itemService';
+import { useAuth } from '../../context/AuthContext';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -24,6 +25,7 @@ import EmptyState from '../../components/common/EmptyState';
 const TABS = ['all', 'lost', 'found', 'matched', 'recovered'];
 
 const MyReportsPage = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ const MyReportsPage = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [activeTab]);
+  }, [activeTab, user?._id]);
 
   const openEditModal = (item) => {
     setSelectedItem(item);
@@ -123,7 +125,7 @@ const MyReportsPage = () => {
             My Campus Reports
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage your submitted lost and found cases, track statuses, or update item details
+            Viewing reports submitted exclusively by your account {user?.email ? `(${user.email})` : ''}
           </p>
         </div>
 
