@@ -10,7 +10,7 @@ const { analyzeAndFindMatches } = require('./src/services/aiMatchingService');
 
 const runTest = async () => {
   console.log('====================================================');
-  console.log('  FindIt - Gemini 3.8 Flash Image Analysis Test');
+  console.log('  FindIt - Gemini Image Analysis Test');
   console.log('====================================================');
 
   const apiKey = process.env.GEMINI_API_KEY;

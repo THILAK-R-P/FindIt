@@ -193,7 +193,7 @@ const getGenAIClient = () => {
 };
 
 /**
- * Analyze an item image using Gemini 3.8 Flash
+ * Analyze an item image using Gemini Multimodal Flash
  *
  * @param {string|Buffer|Object} imageData - Base64 Data URL, path, URL, or buffer
  * @returns {Promise<Object|null>} - Structured attributes or null on failure/missing key
@@ -229,57 +229,77 @@ const analyzeItemImage = async (imageData) => {
       'brand or manufacturer, primary color, secondary colors, distinctive features (e.g. logos, keychains, scratches, stickers, patterns), ' +
       'and any visible text or model numbers. Return the response strictly as JSON matching the schema.';
 
-    // 4. Request analysis from Gemini 3.8 Flash (with retry for transient demand spikes and timeout safeguard)
+    // 4. Request analysis from Gemini (with candidate model list and fallback for transient spikes / unavailable models)
+    const primaryModel = process.env.GEMINI_IMAGE_MODEL || process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+    const candidateModels = [primaryModel, 'gemini-3-flash-preview', 'gemini-3.8-flash'].filter(
+      (m, idx, arr) => m && arr.indexOf(m) === idx
+    );
+
     let response = null;
-    const maxRetries = 1;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const analysisPromise = ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  inlineData: {
-                    data: parsed.data,
-                    mimeType: parsed.mimeType,
+    let selectedModel = primaryModel;
+
+    for (const modelName of candidateModels) {
+      const maxRetries = 1;
+      let modelSuccess = false;
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const analysisPromise = ai.models.generateContent({
+            model: modelName,
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    inlineData: {
+                      data: parsed.data,
+                      mimeType: parsed.mimeType,
+                    },
                   },
-                },
-                {
-                  text: prompt,
-                },
-              ],
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: itemAttributeSchema,
+              temperature: 0.1,
             },
-          ],
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: itemAttributeSchema,
-            temperature: 0.1,
-          },
-        });
+          });
 
-        // 12-second timeout safeguard to ensure report submission never blocks indefinitely
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Gemini image analysis timed out after 12s')), 12000)
-        );
+          // 15-second timeout safeguard per attempt to prevent blocking indefinitely
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Gemini image analysis timed out after 15s for model ${modelName}`)), 15000)
+          );
 
-        response = await Promise.race([analysisPromise, timeoutPromise]);
-        break; // Success
-      } catch (callErr) {
-        const isTransient = callErr.status === 503 || callErr.status === 429 || (callErr.message && callErr.message.includes('high demand'));
-        if (isTransient && attempt < maxRetries) {
-          const delay = 1500;
-          console.warn(`[Gemini Service] Transient API load (attempt ${attempt + 1}/${maxRetries + 1}). Retrying in ${delay / 1000}s...`);
-          await new Promise((r) => setTimeout(r, delay));
-        } else {
-          throw callErr;
+          response = await Promise.race([analysisPromise, timeoutPromise]);
+          if (response && response.text) {
+            selectedModel = modelName;
+            modelSuccess = true;
+            break; // Success for this model
+          }
+        } catch (callErr) {
+          const cause = callErr.cause ? ` (${callErr.cause.message || callErr.cause.code || ''})` : '';
+          console.warn(`[Gemini Service] Model '${modelName}' attempt ${attempt + 1}/${maxRetries + 1} failed: ${callErr.message}${cause}`);
+          if (attempt < maxRetries) {
+            await new Promise((r) => setTimeout(r, 1000));
+          }
         }
+      }
+
+      if (modelSuccess && response && response.text) {
+        break; // Successfully got response, stop trying candidates
+      }
+
+      if (modelName !== candidateModels[candidateModels.length - 1]) {
+        console.warn(`[Gemini Service] Trying fallback model after '${modelName}' failed...`);
       }
     }
 
     if (!response || !response.text) {
-      console.warn('[Gemini Service] Received empty response from Gemini 3.8 Flash.');
+      console.warn('[Gemini Service] Received empty response from Gemini.');
       return null;
     }
 
@@ -310,7 +330,7 @@ const analyzeItemImage = async (imageData) => {
 
     // 6. Print Gemini result clearly in backend console for verification
     console.log('====================================================');
-    console.log('  [Gemini 3.8 Flash] Image Analysis Result:');
+    console.log(`  [Gemini Flash (${selectedModel})] Image Analysis Result:`);
     console.log('====================================================');
     console.log(JSON.stringify(normalizedAttributes, null, 2));
     console.log('====================================================');

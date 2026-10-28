@@ -11,7 +11,7 @@ const { analyzeAndFindMatches } = require('./src/services/aiMatchingService');
 
 const testSubmitLostItem = async () => {
   console.log('====================================================');
-  console.log('  Submitting New Lost Item with Image (Gemini 3.8 Flash Test)');
+  console.log('  Submitting New Lost Item with Image (Gemini Image Analysis Test)');
   console.log('====================================================');
 
   const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/findit';

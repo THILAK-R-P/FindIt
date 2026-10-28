@@ -24,7 +24,7 @@ const analyzeAndFindMatches = async (item) => {
 
   // Step 1: Gemini Image Analysis
   if (item.imageUrl) {
-    console.log(`[AI Pipeline] Requesting Gemini 3.8 Flash image analysis for item '${item.itemName}'...`);
+    console.log(`[AI Pipeline] Requesting Gemini image analysis for item '${item.itemName}'...`);
     aiAttributes = await analyzeItemImage(item.imageUrl);
     if (aiAttributes) {
       console.log(`[AI Pipeline] Successfully extracted structured attributes for item '${item.itemName}'.`);
